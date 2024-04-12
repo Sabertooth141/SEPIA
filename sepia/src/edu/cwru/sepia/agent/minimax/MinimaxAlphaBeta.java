@@ -14,8 +14,8 @@ import java.util.Map;
 public class MinimaxAlphaBeta extends Agent {
 
     private final int numPlys;
- 
-    private final int roundDecision = (numPlys % 2);
+
+    private boolean maximizingPlayer = true;
 
     public MinimaxAlphaBeta(int playernum, String[] args)
     {
@@ -28,10 +28,10 @@ public class MinimaxAlphaBeta extends Agent {
         }
 
         numPlys = Integer.parseInt(args[0]);
-    }
+}
 
-    @Override
-    public Map<Integer, Action> initialStep(State.StateView newstate, History.HistoryView statehistory) {
+@Override
+public Map<Integer, Action> initialStep(State.StateView newstate, History.HistoryView statehistory) {
         return middleStep(newstate, statehistory);
     }
 
@@ -77,91 +77,80 @@ public class MinimaxAlphaBeta extends Agent {
      */
     public GameStateChild alphaBetaSearch(GameStateChild node, int depth, double alpha, double beta)
     {
-    	//base situation
-    	if(depth == 0) {
-    		node.state.setH(node.state.getUtility());
-    		return node;
-    	}
-    	//other situations
-    	List<GameStateChild> childrenMax = orderChildrenWithHeuristics(node.state.getChildren());
+        //base situation
+        if(depth <= 0) {
+            node.state.setHeuristic(node.state.getUtility());
+            return node;
+        }
+        //other situations
+        List<GameStateChild> children = orderChildrenWithHeuristics(node.state.getChildren());
 
-    	if(node.isMaximizingPlayer()){
-    		double value = Double.NEGATIVE_INFINITY;
-    		GameStateChild bestChild = null;
-    		for(GameStateChhild child : cildren){
-    	    	GameStateChild desc = alphaBetaSearch(child, depth - 1, alpha, beta);
-    	        double childValue = desc.state.getH(); 
-    	        if (childValue > value) {
-    	            value = childValue;
-    	            bestChild = child;
-    	        }
-    	        alpha = Math.max(alpha, value);
-    	        if (value >= beta) {
-    	            break; //cut off
-    	        }
-    		}
-    		bestChild.state.setH(value);
-    		return bestChild;
-    	}else {
-    		double value = Double.POSITIVE_INFINITY;
-    		GameStateChild bestChild = null;
+        double bestVal;
+        GameStateChild bestChild = null;
+        if (maximizingPlayer) {
+            bestVal = Double.NEGATIVE_INFINITY;
+            maximizingPlayer = false;
             for(GameStateChild child : children){
                 GameStateChild desc = alphaBetaSearch(child, depth - 1, alpha, beta);
-                double childvalue = desc.state.getH();
-                if (childValue < value) {
-                    value = childValue;
+                double childValue = desc.state.getHeuristic();
+                if (childValue > bestVal) {
+                    bestVal = childValue;
                     bestChild = child;
                 }
-                beta = Math.min(beta, value);
-                if (value <= alpha) {
+                alpha = Math.max(alpha, bestVal);
+                if (alpha >= beta) {
                     break; //cut off
-                } 
-            }
-            bestChild.state.setH(value);
-    		return bestChild;   
-    		}
-    	 }
-    	
-        return node;
-    }
-    
-    //helper method to decide if this is alpha round or beta round
-    private boolean isMaximizingPlayer(int depth) {
-    	if (depth % 2 == roundDecision) {
-    		return true;
-    	}
-    	else {
-    		return false;
-    	}
-    }
-
-    /**
-     * You will implement this.
-     *
-     * Given a list of children you will order them according to heuristics you make up.
-     * See the assignment description for suggestions on heuristics to use when sorting.
-     *
-     * Use this function inside of your alphaBetaSearch method.
-     *
-     * Include a good comment about what your heuristics are and why you chose them.
-     *
-     * @param children
-     * @return The list of children sorted by your heuristic.
-     */
-    public List<GameStateChild> orderChildrenWithHeuristics(List<GameStateChild> children) {
-        //the heuristic is keep attacking whenever possible
-        Collections.sort(children, new Comparator<GameStateChild>() {
-            @Override
-            public int compare(GameStateChild child1, GameStateChild child2) {
-                if (ActionType.PRIMITIVEATTACK.equals(child1.action.getType()) && ActionType.PRIMITIVEMOVE.equals(child2.action.getType())) {
-                    return -1;
-                } else if (ActionType.PRIMITIVEMOVE.equals(child1.getActType()) && ActionType.PRIMITIVEATTACK.equals(child2.action.getType())) {
-                    return 1;
-                }else{
-                    return 0;
                 }
             }
+        } else {
+            bestVal = Double.POSITIVE_INFINITY;
+            maximizingPlayer = true;
+            for(GameStateChild child : children){
+                GameStateChild desc = alphaBetaSearch(child, depth - 1, alpha, beta);
+                double childValue = desc.state.getHeuristic();
+                if (childValue < bestVal) {
+                    bestVal = childValue;
+                    bestChild = child;
+                }
+                beta = Math.min(beta, bestVal);
+                if (bestVal <= alpha) {
+                    break; //cut off
+                }
+            }
+        }
+        if (bestChild != null) {
+            bestChild.state.setHeuristic(bestVal);
+        }
+        return bestChild;
+    }
+
+/**
+ * You will implement this.
+ *
+ * Given a list of children you will order them according to heuristics you make up.
+ * See the assignment description for suggestions on heuristics to use when sorting.
+ *
+ * Use this function inside of your alphaBetaSearch method.
+ *
+ * Include a good comment about what your heuristics are and why you chose them.
+ *
+ * @param children
+ * @return The list of children sorted by your heuristic.
+ */
+    public List<GameStateChild> orderChildrenWithHeuristics(List<GameStateChild> children)
+    {
+        //the heuristic is keep attacking whenever possible
+        children.sort((child1, child2) -> {
+            Integer a = 0;
+            if (ActionType.PRIMITIVEATTACK.equals(child1.action.get(a).getType()) && ActionType.PRIMITIVEMOVE.equals(child2.action.get(a).getType())) {
+                return -1;
+            } else if (ActionType.PRIMITIVEMOVE.equals(child1.action.get(a).getType()) && ActionType.PRIMITIVEATTACK.equals(child2.action.get(a).getType())) {
+                return 1;
+            }
+            else {
+                return 0;
+            }
         });
-        
+        return children;
     }
 }
