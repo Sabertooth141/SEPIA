@@ -1,19 +1,18 @@
 package edu.cwru.sepia.agent.planner;
 
 import edu.cwru.sepia.action.Action;
+import edu.cwru.sepia.action.ActionResult;
+import edu.cwru.sepia.action.ActionType;
 import edu.cwru.sepia.agent.Agent;
-import edu.cwru.sepia.agent.planner.actions.*;
+import edu.cwru.sepia.agent.planner.actions.StripsAction;
 import edu.cwru.sepia.environment.model.history.History;
-import edu.cwru.sepia.environment.model.state.ResourceType;
 import edu.cwru.sepia.environment.model.state.State;
 import edu.cwru.sepia.environment.model.state.Template;
 import edu.cwru.sepia.environment.model.state.Unit;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 
 /**
  * This is an outline of the PEAgent. Implement the provided methods. You may add your own methods and members.
@@ -85,8 +84,38 @@ public class PEAgent extends Agent {
      */
     @Override
     public Map<Integer, Action> middleStep(State.StateView stateView, History.HistoryView historyView) {
-        // TODO: Implement me!
-        return null;
+        Map<Integer, Action> actions = new HashMap<>();
+        boolean isComplete = false;
+
+        for (Unit.UnitView unit : stateView.getAllUnits()) {
+            if (unit.getTemplateView().getName().equalsIgnoreCase("peasant")) {
+                Map<Integer, ActionResult> results = historyView.getCommandFeedback(0, stateView.getTurnNumber() - 1);
+                for (ActionResult result : results.values()) {
+                    if (result.getFeedback().toString().equals("INCOMPLETE")) {
+                        isComplete = true;
+                    } else if (result.getFeedback().toString().equals("FAILED")) {
+                        System.err.println("FAILED");
+                        actions.put(result.getAction().getUnitId(), result.getAction());
+                        return actions;
+                    }
+                }
+            }
+        }
+
+        if (!isComplete) {
+            List<Action> nextActions = new ArrayList<>();
+            // implement this in actions that implement StripsAction
+            // should return the current action in the action classes
+            Action action = plan.pop().convertAction();
+            nextActions.add(action);
+
+            for (int i = 0; i < nextActions.size(); i++) {
+                System.out.println(nextActions.get(i).toString());
+                actions.put(nextActions.get(i).getType() == ActionType.PRIMITIVEPRODUCE ? i : peasantIdMap.get(i+1) , nextActions.get(i));
+            }
+        }
+
+        return actions;
     }
 
     /**
