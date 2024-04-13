@@ -39,5 +39,5 @@ public interface StripsAction {
      */
     public GameState apply(GameState state);
 
-    public Action convertAction();
+    public Action converAction();
 }
