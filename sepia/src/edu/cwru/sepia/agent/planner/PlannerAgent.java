@@ -91,8 +91,48 @@ public class PlannerAgent extends Agent {
      * @return The plan or null if no plan is found.
      */
     private Stack<StripsAction> AstarSearch(GameState startState) {
-        // TODO: Implement me!
+        PriorityQueue<GameState> openList = new PriorityQueue<>();
+        Set<GameState> closedList = new HashSet<>();
+        openList.add(startState);
+
+        while (!openList.isEmpty()) {
+            GameState current = openList.poll();
+
+            if (current.isGoal()) {         // if reached goal, back track to form a path
+                Stack<StripsAction> result = new Stack<>();
+                GameState state = current;
+                List<StripsAction> plan = state.getPlan();           // need to implement this in GameState
+                while (!plan.isEmpty()) {
+                    result.push(plan.remove(plan.size() - 1));
+                }
+                state = state.getParent();          // need to implement this in GameState
+                return result;
+            }
+
+            closedList.add(current);
+
+            // loop through the children to find the lowest heuristic
+            for (GameState s : current.generateChildren()) {
+                if (!closedList.contains(s)) {
+                    if (!lowerCost(openList, s)) {
+                        openList.remove(s);
+                    }
+                    openList.add(s);
+                }
+            }
+        }
+
         return null;
+    }
+
+    private boolean lowerCost(PriorityQueue<GameState> openList, GameState state) {
+        GameState[] states = openList.toArray(new GameState[] {});
+        for (GameState s : states) {
+            if (s.equals(state) && s.getCost() < state.getCost()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
