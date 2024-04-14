@@ -94,6 +94,7 @@ public class PlannerAgent extends Agent {
         PriorityQueue<GameState> openList = new PriorityQueue<>();
         Set<GameState> closedList = new HashSet<>();
         openList.add(startState);
+        List<GameState> temp = startState.generateChildren();
 
         while (!openList.isEmpty()) {
             GameState current = openList.poll();
@@ -101,38 +102,37 @@ public class PlannerAgent extends Agent {
             if (current.isGoal()) {         // if reached goal, back track to form a path
                 Stack<StripsAction> result = new Stack<>();
                 GameState state = current;
-                List<StripsAction> plan = state.getPlan();           // need to implement this in GameState
-                while (!plan.isEmpty()) {
-                    result.push(plan.remove(plan.size() - 1));
+                while (state != null) {
+                    List<StripsAction> plan = state.getPlan();
+                    if (plan != null) {
+                        Collections.reverse(plan);
+                        for (StripsAction action : plan) {
+                            result.push(action);
+                        }
+                    }
+                    state = state.getParent();
                 }
-                state = state.getParent();          // need to implement this in GameState
                 return result;
             }
 
             closedList.add(current);
 
-            // loop through the children to find the lowest heuristic
             for (GameState s : current.generateChildren()) {
-                if (!closedList.contains(s)) {
-                    if (!lowerCost(openList, s)) {
-                        openList.remove(s);
+                boolean shouldAdd = true;
+                GameState[] statesInOpenList = openList.toArray(new GameState[0]);
+                for (GameState state : statesInOpenList) {
+                    if (state.equals(s) && state.getCost() <= s.getCost()) {
+                        shouldAdd = false;
+                        break;
                     }
+                }
+                if (shouldAdd) {
                     openList.add(s);
                 }
             }
         }
 
         return null;
-    }
-
-    private boolean lowerCost(PriorityQueue<GameState> openList, GameState state) {
-        GameState[] states = openList.toArray(new GameState[] {});
-        for (GameState s : states) {
-            if (s.equals(state) && s.getCost() < state.getCost()) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
