@@ -1,7 +1,15 @@
 package edu.cwru.sepia.agent.planner;
 
-import edu.cwru.sepia.environment.model.state.State;
+import edu.cwru.sepia.agent.planner.actions.Deposit;
+import edu.cwru.sepia.agent.planner.actions.Harvest;
+import edu.cwru.sepia.agent.planner.actions.Move;
+import edu.cwru.sepia.agent.planner.actions.StripsAction;
+import edu.cwru.sepia.environment.model.state.*;
+import edu.cwru.sepia.environment.model.state.ResourceNode.ResourceView;
+import edu.cwru.sepia.environment.model.state.Unit.UnitView;
+import edu.cwru.sepia.util.Direction;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -18,17 +26,17 @@ import java.util.List;
  *
  * state.getXExtent() and state.getYExtent() to get the map size
  *
-  * Note that SEPIA saves the townhall as a unit. Therefore when you create a GameState instance,
+ * Note that SEPIA saves the townhall as a unit. Therefore when you create a GameState instance,
  * you must be able to distinguish the townhall from a peasant. This can be done by getting
  * the name of the unit type from that unit's TemplateView:
  * state.getUnit(id).getTemplateView().getName().toLowerCase(): returns "townhall" or "peasant"
- * 
+ *
  * You will also need to distinguish between gold mines and trees.
  * state.getResourceNode(id).getType(): returns the type of the given resource
- * 
+ *
  * You can compare these types to values in the ResourceNode.Type enum:
  * ResourceNode.Type.GOLD_MINE and ResourceNode.Type.TREE
- * 
+ *
  * You can check how much of a resource is remaining with the following:
  * state.getResourceNode(id).getAmountRemaining()
  *
@@ -36,6 +44,106 @@ import java.util.List;
  * class/structure you use to represent actions.
  */
 public class GameState implements Comparable<GameState> {
+
+    public final State.StateView state;
+    // current gold & wood
+    public int gold;
+    public int wood;
+    // required gold & wood
+    public int requiredGold;
+    public int requiredWood;
+
+    public boolean buildPeasants;
+
+    private final int xExtent;
+    private final int yExtent;
+
+    private final List<UnitView> allUnits;
+    private List<UnitView> playerUnits = new ArrayList<>();
+
+    //resources maps
+    private final List<ResourceView> resourceNodes;
+    private final boolean[][] map;
+    private final int[][] woodMap;
+    private final int[][] goldMap;
+
+    public int playernum; // The player number of agent
+
+    private GameState parent = null; // The parent of the game state
+
+    private double cost;
+    private UnitView townHall;
+
+    private ArrayList<StripsAction> plan;
+
+    private List<UnitView> peasants;
+    private StripsAction parentAction;
+    public StripsAction childAction;
+
+    //getter setter
+    public GameState getParent() {
+        return parent;
+    }
+
+    public int[][] getWoodMap(){
+        return this.woodMap;
+    }
+
+    public boolean[][] getMap() {
+        return map;
+    }
+
+    public int[][] getGoldMap(){
+        return this.goldMap;
+    }
+
+    public ArrayList<StripsAction> getPlan(){
+        return plan;
+    }
+
+    public int getXExtent() {
+        return xExtent;
+    }
+
+    public int getYExtent() {
+        return yExtent;
+    }
+
+    public List<UnitView> getPlayerUnits() {
+        return playerUnits;
+    }
+
+    public List<ResourceView> getResourceNodes() {
+        return resourceNodes;
+    }
+
+    public int getGold() {
+        return gold;
+    }
+
+    public int getWood() {
+        return wood;
+    }
+
+    public List<UnitView> getAllUnits() {
+        return allUnits;
+    }
+
+    public void addCost(double cost) {
+        this.cost += cost;
+    }
+
+    public void addPlan(StripsAction action) {
+        plan.add(action);
+    }
+
+    public void addGold(int gold) {
+        this.gold += gold;
+    }
+
+    public void addWood(int wood) {
+        this.wood += wood;
+    }
 
     /**
      * Construct a GameState from a stateview object. This is used to construct the initial search node. All other
@@ -48,7 +156,142 @@ public class GameState implements Comparable<GameState> {
      * @param buildPeasants True if the BuildPeasant action should be considered
      */
     public GameState(State.StateView state, int playernum, int requiredGold, int requiredWood, boolean buildPeasants) {
-        // TODO: Implement me!
+
+        this.state = state;
+        this.requiredGold = requiredGold;
+        this.gold = state.getResourceAmount(playernum, ResourceType.GOLD);
+        this.requiredWood = requiredWood;
+        this.wood = state.getResourceAmount(playernum, ResourceType.WOOD);
+        this.playernum = playernum;
+        this.buildPeasants = buildPeasants;
+
+        //map
+        this.xExtent = state.getXExtent();
+        this.yExtent = state.getYExtent();
+        this.allUnits = state.getAllUnits();
+        for (UnitView u : allUnits) {
+            if (u.getTemplateView().getPlayer() == playernum) {
+                if (u.getTemplateView().getName().equalsIgnoreCase("peasant")) {
+                    this.playerUnits.add(u);
+                } else if (u.getTemplateView().getName().equalsIgnoreCase("townhall")) {
+                    this.townHall = u;
+                }
+            }
+        }
+
+        this.map = new boolean[xExtent][yExtent];
+        this.goldMap = new int[xExtent][yExtent];
+        this.woodMap = new int[xExtent][yExtent];
+        for (int x = 0; x < xExtent; x++) { //Initialize
+            for (int y = 0; y < yExtent; y++) {
+                map[x][y] = false;
+                goldMap[x][y] = 0;
+                woodMap[x][y] = 0;
+            }
+        }
+        map[townHall.getXPosition()][townHall.getYPosition()] = true;
+
+        this.resourceNodes = state.getAllResourceNodes();
+        for (ResourceView r : resourceNodes) {
+            map[r.getXPosition()][r.getYPosition()] = true;
+            if (r.getType() == ResourceNode.Type.GOLD_MINE) {
+                goldMap[r.getXPosition()][r.getYPosition()] = r.getAmountRemaining();
+            }
+            else if (r.getType() == ResourceNode.Type.TREE) {
+                woodMap[r.getXPosition()][r.getYPosition()] = r.getAmountRemaining();
+            }
+        }
+
+        this.plan = new ArrayList<StripsAction>();
+        this.cost = getCost();
+        this.parent = null;
+    }
+
+    public GameState(GameState copiedState) {
+        this.state = copiedState.state;
+        this.parent = copiedState;
+        this.playernum = copiedState.playernum;
+        this.requiredGold = copiedState.requiredGold;
+        this.requiredWood = copiedState.requiredWood;
+        this.buildPeasants = copiedState.buildPeasants;
+
+        this.xExtent = copiedState.xExtent;
+        this.yExtent = copiedState.yExtent;
+
+        List<ResourceView> copiedResources = new ArrayList<>();
+        for (ResourceView r : copiedState.getResourceNodes()) {
+            ResourceView toCopy = new ResourceView(new ResourceNode(r.getType(), r.getXPosition(), r.getYPosition(), r.getAmountRemaining(), r.getID()));
+            copiedResources.add(toCopy);
+        }
+        this.resourceNodes = copiedResources;
+
+        boolean[][] originalMap = copiedState.map;
+        boolean[][] copiedMap = new boolean[originalMap.length][originalMap[0].length];
+        for (int x = 0; x < originalMap.length; x++) {
+            System.arraycopy(originalMap[x], 0, copiedMap[x], 0, originalMap[0].length);
+        }
+        this.map = copiedMap;
+
+        int[][] originalGoldMap = copiedState.goldMap;
+        int[][] copiedGoldMap = new int[originalGoldMap.length][originalGoldMap[0].length];
+        for (int x = 0; x < originalGoldMap.length; x++) {
+            System.arraycopy(originalGoldMap[x], 0, copiedGoldMap[x], 0, originalGoldMap[0].length);
+        }
+        this.goldMap = copiedGoldMap;
+
+        int[][] originalWoodMap = copiedState.goldMap;
+        int[][] copiedWoodMap = new int[originalGoldMap.length][originalGoldMap[0].length];
+        for (int x = 0; x < originalWoodMap.length; x++) {
+            System.arraycopy(originalGoldMap[x], 0, copiedWoodMap[x], 0, originalWoodMap[0].length);
+        }
+        this.woodMap = copiedWoodMap;
+
+        List<UnitView> copiedUnits = new ArrayList<>();
+        for (UnitView uv : copiedState.allUnits) {
+            Unit unit = new Unit(new UnitTemplate(uv.getID()), uv.getID());
+            unit.setxPosition(uv.getXPosition());
+            unit.setyPosition(uv.getYPosition());
+            unit.setCargo(uv.getCargoType(), uv.getCargoAmount());
+            copiedUnits.add(new UnitView(unit));
+        }
+        this.allUnits = copiedUnits;
+
+        List<UnitView> copiedPlayerUnits = new ArrayList<>();
+        for (UnitView uv : copiedState.playerUnits) {
+            Unit unit = new Unit(new UnitTemplate(uv.getID()), uv.getID());
+            unit.setxPosition(uv.getXPosition());
+            unit.setyPosition(uv.getYPosition());
+            unit.setCargo(uv.getCargoType(), uv.getCargoAmount());
+            copiedPlayerUnits.add(new UnitView(unit));
+        }
+        this.playerUnits = copiedPlayerUnits;
+
+    }
+
+    public GameState getChild(StripsAction action) {
+        GameState result = parentAction.apply(this);
+        this.childAction = action;
+        result.cost = getCost();
+        result.parent = this;
+        return result;
+    }
+
+    public UnitView findUnit(int unitId, List<UnitView> units) {
+        for (UnitView u : units) {
+            if (u.getID() == unitId) {
+                return u;
+            }
+        }
+        return null;
+    }
+
+    public ResourceView findResource(int x, int y, List<ResourceView> resources) {
+        for (ResourceView r : resources) {
+            if (r.getXPosition() == x && r.getYPosition() == y) {
+                return r;
+            }
+        }
+        return null;
     }
 
     /**
@@ -59,8 +302,7 @@ public class GameState implements Comparable<GameState> {
      * @return true if the goal conditions are met in this instance of game state.
      */
     public boolean isGoal() {
-        // TODO: Implement me!
-        return false;
+        return gold >= requiredGold && wood >= requiredWood;
     }
 
     /**
@@ -70,8 +312,103 @@ public class GameState implements Comparable<GameState> {
      * @return A list of the possible successor states and their associated actions
      */
     public List<GameState> generateChildren() {
-        // TODO: Implement me!
-        return null;
+        List<GameState> result = new ArrayList<GameState>();
+//        for (int x = 0; x < xExtent; x++) {
+//            for (int y = 0; y < yExtent; y++) {
+//                for(UnitView p : playerUnits) {
+//                    result.add(this.getChild(new Move(new Position(x,y), p, this)));
+//                    result.add(this.getChild(new Deposit(new Position(x,y), this.townHall, p, this, true)));
+//                    result.add(this.getChild(new Harvest(new Position(x,y), p, this, true)));
+//                    result.add(this.getChild(new Deposit(new Position(x,y), this.townHall, p, this, false)));
+//                    result.add(this.getChild(new Harvest(new Position(x,y), p, this, false)));
+//                }
+//            }
+//        }
+        for (UnitView uv : playerUnits) {
+            for (Direction dir : Direction.values()) {
+                int x = uv.getXPosition() + dir.xComponent();
+                int y = uv.getYPosition() + dir.yComponent();
+                Position newPosition = new Position(x, y);
+                UnitView th = townHall;
+
+                Deposit depositGold = new Deposit(newPosition, th, uv, this, true);
+                if (depositGold.preconditionsMet(this)) {
+                    result.add(depositGold.apply(this));
+                }
+
+                Deposit depositWood = new Deposit(newPosition, th, uv, this, false);
+                if (depositWood.preconditionsMet(this)) {
+                    result.add(depositWood.apply(this));
+                }
+
+                Harvest harvestGold = new Harvest(newPosition, uv, this, true);
+                if (harvestGold.preconditionsMet(this)) {
+                    result.add(harvestGold.apply(this));
+                }
+
+                Harvest harvestWood = new Harvest(newPosition, uv, this, true);
+                if (harvestWood.preconditionsMet(this)) {
+                    result.add(harvestWood.apply(this));
+                }
+            }
+            Position bestGold = findMostGold(new Position(uv.getXPosition(), uv.getYPosition()));
+            bestMove(result, uv, bestGold);
+
+            Position bestWood = findMostWood(new Position(uv.getXPosition(), uv.getXPosition()));
+            bestMove(result, uv, bestWood);
+
+            Position thPosition = new Position(townHall.getXPosition(), townHall.getYPosition());
+            bestMove(result, uv, thPosition);
+        }
+        return result;
+    }
+
+    private void bestMove(List<GameState> possibles, UnitView unit, Position position) {
+        for (Direction dir : Direction.values()) {
+            int x = position.x + dir.xComponent();
+            int y = position.y + dir.yComponent();
+
+            Move move = new Move(new Position(x, y), unit, this);
+            if (move.preconditionsMet(this)) {
+                possibles.add(move.apply(this));
+            }
+        }
+    }
+
+    public Position findMostGold(Position position) {
+        return getPosition(position, requiredGold, gold, goldMap);
+    }
+
+    public Position findMostWood(Position position) {
+        return getPosition(position, requiredWood, wood, woodMap);
+    }
+
+    private Position getPosition(Position position, int requiredWood, int wood, int[][] woodMap) {
+        Position mostWood = null;
+        int resource = 0;
+        int currentDistance = 0;
+        for (int x = 0; x < woodMap.length; x++) {
+            for (int y = 0; y < woodMap[x].length; y++) {
+                int currentBest = woodMap[x][y];
+                if (currentBest > 0) {
+                    int distance = position.chebyshevDistance(new Position(x, y));
+                    if (mostWood == null) {
+                        mostWood = new Position(x, y);
+                        currentDistance = distance;
+                        resource = currentBest;
+                    } else {
+                        if (currentDistance <= distance) {
+                            if (currentBest >= resource || currentBest >= requiredWood - wood) {
+                                mostWood = new Position(x, y);
+                                currentDistance = distance;
+                                resource = currentBest;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return mostWood;
     }
 
     /**
@@ -83,8 +420,67 @@ public class GameState implements Comparable<GameState> {
      * @return The value estimated remaining cost to reach a goal state from this state.
      */
     public double heuristic() {
-        // TODO: Implement me!
-        return 0.0;
+        /* H(states) = R + D - C
+        Whereas:
+        R = the total gap between current and required wood and gold
+        D = distance to nearest townhall or resource node
+        C = if unit is carrying stuff, minus that ammount to the the total gap;
+        */
+
+        double result = requiredGold - gold + requiredWood - wood;
+
+        UnitView peasant = playerUnits.get(0);
+        Position unitPosition = new Position(peasant.getXPosition(), peasant.getYPosition());
+
+        // if peasant is carrying stuff, find its distance to the townhall
+        if (peasant.getCargoAmount() > 0) {
+            Position townHallPosition = new Position(townHall.getXPosition(), townHall.getYPosition());
+            result -= peasant.getCargoAmount();
+            result += townHallPosition.chebyshevDistance(unitPosition) * 0.5;
+
+        } else { // if peasant is still looking for a resource
+            Position bestResource = findBestResource(unitPosition);
+            result += bestResource.chebyshevDistance(unitPosition) * 0.5;
+        }
+
+        return result;
+    }
+
+    private Position findBestResource(Position currentPosition) {
+        // determine which resource gap is larger
+        int goldNeeded = requiredGold - gold;
+        int woodNeeded = requiredWood - wood;
+        boolean prioritizeGold = goldNeeded > woodNeeded;
+
+        // switch to the correct map and other params
+        int[][] resourceMap = prioritizeGold ? goldMap : woodMap;
+        int requiredResource = prioritizeGold ? requiredGold : requiredWood;
+        int currentResource = prioritizeGold ? gold : wood;
+
+        // initialize params to tell if best position
+        Position bestPosition = null;
+        int minDistance = Integer.MAX_VALUE;
+        int maxResourceAtBest = 0;
+
+        for (int i = 0; i < resourceMap.length; i++) {
+            for (int j = 0; j < resourceMap[i].length; j++) {
+                int resourceAtPosition = resourceMap[i][j];
+                if (resourceAtPosition > 0) {
+                    int distance = currentPosition.chebyshevDistance(new Position(i, j));
+                    boolean isCloserOrEqual = distance <= minDistance;
+                    boolean isBetterResource = resourceAtPosition > maxResourceAtBest;
+                    boolean meetsResourceNeed = resourceAtPosition >= requiredResource - currentResource;
+
+                    if ((bestPosition == null) || (isCloserOrEqual && (isBetterResource || meetsResourceNeed))) {
+                        bestPosition = new Position(i, j);
+                        minDistance = distance;
+                        maxResourceAtBest = resourceAtPosition;
+                    }
+                }
+            }
+        }
+
+        return bestPosition;
     }
 
     /**
@@ -95,8 +491,7 @@ public class GameState implements Comparable<GameState> {
      * @return The current cost to reach this goal
      */
     public double getCost() {
-        // TODO: Implement me!
-        return 0.0;
+        return cost;
     }
 
     /**
@@ -108,8 +503,7 @@ public class GameState implements Comparable<GameState> {
      */
     @Override
     public int compareTo(GameState o) {
-        // TODO: Implement me!
-        return 0;
+        return Double.compare(this.getCost(), o.getCost());
     }
 
     /**
@@ -120,7 +514,12 @@ public class GameState implements Comparable<GameState> {
      */
     @Override
     public boolean equals(Object o) {
-        // TODO: Implement me!
+        if (o instanceof GameState) {
+            return this.gold == ((GameState) o).getGold()
+                    && this.wood == ((GameState) o).getWood()
+                    && this.allUnits.equals(((GameState) o).getAllUnits())
+                    && this.heuristic() == ((GameState) o).heuristic();
+        }
         return false;
     }
 
@@ -132,7 +531,6 @@ public class GameState implements Comparable<GameState> {
      */
     @Override
     public int hashCode() {
-        // TODO: Implement me!
-        return 0;
+        return ((this.gold + this.wood)% 37);
     }
 }

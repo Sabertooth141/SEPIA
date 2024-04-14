@@ -10,6 +10,8 @@ import edu.cwru.sepia.agent.planner.GameState;
  */
 public interface StripsAction {
 
+    GameState getParent();
+
     /**
      * Returns true if the provided GameState meets all of the necessary conditions for this action to successfully
      * execute.
