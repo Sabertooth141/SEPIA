@@ -28,20 +28,10 @@ public class Move implements StripsAction {
 
     @Override
     public boolean preconditionsMet(GameState state) {
-        int x = currentPosition.x;
-        int y = currentPosition.y;
+        Position currentPos = currentPosition;
+        Position myPos = new Position(unit.getXPosition(), unit.getYPosition());
         // need to implement getMap() in GameState which is a map the logs the positions of objects other than the peasant i.e. gold, town hall, etc.
-        if (x < state.getXExtent() && x > 0 && y < state.getYExtent() && y > 0 && !state.getMap()[x][y]) {
-            // need to implement getPlayerUnits in GameState which gets the current player controlled unit
-            for (UnitView unit : state.getPlayerUnits()) {
-                if (x == unit.getXPosition() && y == unit.getYPosition()) {
-                    return false;
-                }
-            }
-            return true;
-        } else {
-            return false;
-        }
+        return myPos.inBounds(state.getXExtent(), state.getYExtent()) && currentPos.inBounds(state.getXExtent(), state.getYExtent());
     }
 
     @Override

@@ -348,15 +348,15 @@ public class GameState implements Comparable<GameState> {
                 }
             }
             Position bestGold = findMostGold(new Position(uv.getXPosition(), uv.getYPosition()));
-//            System.out.println(1);
+            System.out.println("gold");
             bestMove(result, uv, bestGold);
 
             Position bestWood = findMostWood(new Position(uv.getXPosition(), uv.getXPosition()));
-//            System.out.println(2);
+            System.out.println("wood");
             bestMove(result, uv, bestWood);
 
             Position thPosition = new Position(townHall.getXPosition(), townHall.getYPosition());
-//            System.out.println(3);
+            System.out.println("move");
             bestMove(result, uv, thPosition);
         }
         return result;
@@ -369,7 +369,7 @@ public class GameState implements Comparable<GameState> {
 
             Move move = new Move(new Position(x, y), unit, this);
             if (move.preconditionsMet(this)) {
-//                System.out.println("move" + " " + x + " " + y);
+                System.out.println("move" + " " + x + " " + y);
                 possibles.add(move.apply(this));
             }
         }
@@ -392,6 +392,7 @@ public class GameState implements Comparable<GameState> {
                 int currentBest = map[x][y];
                 if (currentBest > 0) {
                     int distance = position.chebyshevDistance(new Position(x, y));
+                    System.out.println(resource);
                     if (result == null) {
                         result = new Position(x, y);
                         currentDistance = distance;
@@ -420,28 +421,54 @@ public class GameState implements Comparable<GameState> {
      * @return The value estimated remaining cost to reach a goal state from this state.
      */
     public double heuristic() {
-        /* H(states) = R + D - C
-        Whereas:
-        R = the total gap between current and required wood and gold
-        D = distance to nearest townhall or resource node
-        C = if unit is carrying stuff, minus that ammount to the the total gap;
-        */
+        int goldDiff = requiredGold - gold;
+        int woodDiff = requiredWood - wood;
+        double result = goldDiff + woodDiff;
 
-        double result = requiredGold - gold + requiredWood - wood;
 
         UnitView peasant = playerUnits.get(0);
         Position unitPosition = new Position(peasant.getXPosition(), peasant.getYPosition());
 
-        // if peasant is carrying stuff, find its distance to the townhall
-        if (peasant.getCargoAmount() > 0) {
-            Position townHallPosition = new Position(townHall.getXPosition(), townHall.getYPosition());
-            result -= peasant.getCargoAmount();
-            result += townHallPosition.chebyshevDistance(unitPosition) * 0.5;
 
-        } else { // if peasant is still looking for a resource
+        if (peasant.getCargoAmount() > 0) {
+            Position th = new Position(townHall.getXPosition(), townHall.getYPosition());
+            result -= peasant.getCargoAmount() * 0.5;
+            double disFromTh =th.chebyshevDistance(unitPosition);
+            result += disFromTh;
+        }
+        else {
             Position bestResource = findBestResource(unitPosition);
             result += bestResource.chebyshevDistance(unitPosition) * 0.5;
+            double harvestAmount = 0;
+            for(Direction d : Direction.values()) {
+                int x = peasant.getXPosition() + d.xComponent();
+                int y = peasant.getYPosition() + d.yComponent();
+                int goldAmount = goldMap[x][y];
+                int woodAmount = woodMap[x][y];
+                if (goldAmount > 0) {
+                    if (requiredGold - gold > 0) {
+                        if (goldAmount > 100) {
+                            harvestAmount = 100;
+                        }
+                        else {
+                            harvestAmount = goldMap[x][y];
+                        }
+                    }
+                }
+                if (woodAmount > 0) {
+                    if (requiredWood - wood > 0) {
+                        if (woodAmount > 100) {
+                            harvestAmount = 100;
+                        }
+                        else {
+                            harvestAmount = woodMap[x][y];}
+                    }
+                }
+            }
+
+            result -= harvestAmount * 0.3;
         }
+
 
         return result;
     }
