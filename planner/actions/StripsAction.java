@@ -1,7 +1,7 @@
 package edu.cwru.sepia.agent.planner.actions;
 
+import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.agent.planner.GameState;
-import edu.cwru.sepia.agent.planner.Position;
 
 /**
  * A useful start of an interface representing strips actions. You may add new methods to this interface if needed, but
@@ -9,13 +9,9 @@ import edu.cwru.sepia.agent.planner.Position;
  * of a StripsAction.
  */
 public interface StripsAction {
-    public enum StripsActionType {
-        MOVE,
-        COLLECT,
-        BUILD,
-        DEPOSIT
-    }
-	
+
+    GameState getParent();
+
     /**
      * Returns true if the provided GameState meets all of the necessary conditions for this action to successfully
      * execute.
@@ -45,21 +41,5 @@ public interface StripsAction {
      */
     public GameState apply(GameState state);
 
-    public StripsActionType getActionType();
-
-    public Integer getActorID();
-
-    public void setActorID(Integer actorID);
-    
-    public Position getActorPos();
-
-    public void setActorPos(Position actorPos);
-
-    public Integer getTargetID();
-
-    public void setTargetID(Integer targetID);
-
-    public Position getTargetPos();
-
-    public void setTargetPos(Position targetPos);
+    public Action convertAction();
 }

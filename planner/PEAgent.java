@@ -1,21 +1,18 @@
 package edu.cwru.sepia.agent.planner;
 
 import edu.cwru.sepia.action.Action;
-import edu.cwru.sepia.action.ActionFeedback;
 import edu.cwru.sepia.action.ActionResult;
+import edu.cwru.sepia.action.ActionType;
 import edu.cwru.sepia.agent.Agent;
-import edu.cwru.sepia.agent.planner.actions.*;
+import edu.cwru.sepia.agent.planner.actions.StripsAction;
 import edu.cwru.sepia.environment.model.history.History;
-import edu.cwru.sepia.environment.model.state.ResourceType;
 import edu.cwru.sepia.environment.model.state.State;
 import edu.cwru.sepia.environment.model.state.Template;
 import edu.cwru.sepia.environment.model.state.Unit;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 
 /**
  * This is an outline of the PEAgent. Implement the provided methods. You may add your own methods and members.
@@ -29,7 +26,6 @@ public class PEAgent extends Agent {
     // when you're planning you won't know the true unit IDs that sepia assigns. So you'll use placeholders (1, 2, 3).
     // this maps those placeholders to the actual unit IDs.
     private Map<Integer, Integer> peasantIdMap;
-    private State.StateView stateView;
     private int townhallId;
     private int peasantTemplateId;
 
@@ -88,31 +84,38 @@ public class PEAgent extends Agent {
      */
     @Override
     public Map<Integer, Action> middleStep(State.StateView stateView, History.HistoryView historyView) {
-        // TODO: Implement me!
-        this.stateView = stateView;
-        Map<Integer,Action> actions = new HashMap<Integer,Action>();
-        Map<Integer,ActionResult> actionFeedback = historyView.getCommandFeedback(playernum, stateView.getTurnNumber() - 1);
+        Map<Integer, Action> actions = new HashMap<>();
+        boolean isComplete = false;
 
-        while (plan.size() > 0) {
-            /**
-             * Check if unit is available to execute next action in plan
-             * A unit is available if:
-             * - They haven't been assigned anything during the session thus far
-             * - Or they completed their previous action
-             * - And they haven't already been assigned a new action in this step
-             */
-            Integer nextactor = plan.peek().getActorID();
-            if ((!actionFeedback.containsKey(nextactor) || actionFeedback.get(nextactor).getFeedback() == ActionFeedback.COMPLETED) && !actions.containsKey(nextactor)) {
-                StripsAction newaction = plan.pop();
-                actions.put(nextactor, createSepiaAction(newaction));
-            }
-            // pause executing plan otherwise
-            else {
-                break;
+        for (Unit.UnitView unit : stateView.getAllUnits()) {
+            if (unit.getTemplateView().getName().equalsIgnoreCase("peasant")) {
+                Map<Integer, ActionResult> results = historyView.getCommandFeedback(0, stateView.getTurnNumber() - 1);
+                for (ActionResult result : results.values()) {
+                    if (result.getFeedback().toString().equals("INCOMPLETE")) {
+                        isComplete = true;
+                    } else if (result.getFeedback().toString().equals("FAILED")) {
+                        System.err.println("FAILED");
+                        actions.put(result.getAction().getUnitId(), result.getAction());
+                        return actions;
+                    }
+                }
             }
         }
-        
-    	return actions;
+
+        if (!isComplete) {
+            List<Action> nextActions = new ArrayList<>();
+            // implement this in actions that implement StripsAction
+            // should return the current action in the action classes
+            Action action = plan.pop().convertAction();
+            nextActions.add(action);
+
+            for (int i = 0; i < nextActions.size(); i++) {
+                System.out.println(nextActions.get(i).toString());
+                actions.put(nextActions.get(i).getType() == ActionType.PRIMITIVEPRODUCE ? i : peasantIdMap.get(i+1) , nextActions.get(i));
+            }
+        }
+
+        return actions;
     }
 
     /**
@@ -139,28 +142,7 @@ public class PEAgent extends Agent {
      * @return SEPIA representation of same action
      */
     private Action createSepiaAction(StripsAction action) {
-        Action sepiaAction = null;
-        Unit.UnitView unit = stateView.getUnit(action.getActorID());
-
-        switch (action.getActionType()) {
-            case MOVE:
-                Position targetPos = action.getTargetPos();
-                sepiaAction = Action.createCompoundMove(action.getActorID(), targetPos.x, targetPos.y);
-                break;
-            case COLLECT:
-            	sepiaAction = Action.createPrimitiveGather(action.getActorID(), (new Position(unit.getXPosition(), unit.getYPosition())).getDirection(action.getTargetPos()));
-                break;
-            case BUILD:
-            	sepiaAction = Action.createPrimitiveProduction(action.getActorID(), action.getTargetID());
-                break;
-            case DEPOSIT:
-            	sepiaAction = Action.createPrimitiveDeposit(action.getActorID(), (new Position(unit.getXPosition(), unit.getYPosition())).getDirection(action.getTargetPos()));
-                break;
-            default:
-                System.err.println("Unrecognized Strips Action " + action.getActionType());
-        }
-
-        return sepiaAction;
+        return null;
     }
 
     @Override

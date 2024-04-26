@@ -3,8 +3,6 @@ package edu.cwru.sepia.agent.planner;
 import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.agent.Agent;
 import edu.cwru.sepia.agent.planner.actions.StripsAction;
-import edu.cwru.sepia.agent.planner.actions.ApplyAction;
-import edu.cwru.sepia.agent.planner.Position;
 import edu.cwru.sepia.environment.model.history.History;
 import edu.cwru.sepia.environment.model.state.State;
 
@@ -45,7 +43,7 @@ public class PlannerAgent extends Agent {
 
         if(plan == null) {
             System.err.println("No plan was found");
-//            System.exit(1);
+            System.exit(1);
             return null;
         }
 
@@ -85,64 +83,58 @@ public class PlannerAgent extends Agent {
     }
 
     /**
-     * Modified A* Search code
      * Perform an A* search of the game graph. This should return your plan as a stack of actions. This is essentially
      * the same as your first assignment. The implementations should be very similar. The difference being that your
-     * nodes are now GameState objects not Position objects.
+     * nodes are now GameState objects not MapLocation objects.
      *
      * @param startState The state which is being planned from
      * @return The plan or null if no plan is found.
      */
     private Stack<StripsAction> AstarSearch(GameState startState) {
-      // TODO: Implement me!
-    	Stack<StripsAction> finalPlan = new Stack<>();
-    	PriorityQueue<GameState> openList = new PriorityQueue<GameState>();
-        ArrayList<GameState> closedList = new ArrayList<GameState>();
-
-        // start with startState game state
+        PriorityQueue<GameState> openList = new PriorityQueue<>();
+        Set<GameState> closedList = new HashSet<>();
         openList.add(startState);
+        List<GameState> temp = startState.generateChildren();
 
-        // performs A* Search when openList is not empty
         while (!openList.isEmpty()) {
-        	GameState current = openList.poll();
-        	
-            // plan is found when goal is reached
-            if (current.isGoal()) {
-                // Go to each node's parent and add it to the stack of moves
-                while(current.getParent() != null){
-                    finalPlan.push(current.getAction());
-                    current = current.getParent().getParent();
-                }
-                return finalPlan;
-            	
-            } else {
-                // goal is not reached so continue to find next successors
-                // put the current node to the closed list
-                closedList.add(current);
+            GameState current = openList.poll();
 
-                // get a list of successors of the current node
-                List<GameState> successorList = current.generateChildren();   
-                
-                if (successorList != null) {
-	                // add all the successors to the open list
-	                while (!successorList.isEmpty()) {
-	                    // obtain the first successor game state from the list of successors
-	                	GameState successor = successorList.remove(0);
-	
-	                    // check if successor is part of the closed list. If not, add it to open list
-	                    if (closedList.contains(successor)) {
-	                        continue;
-	                    } else {
-	                        openList.add(successor);
-	                    }
-	                }
+            if (current.isGoal()) {         // if reached goal, back track to form a path
+                Stack<StripsAction> result = new Stack<>();
+                GameState state = current;
+                while (state != null) {
+                    List<StripsAction> plan = state.getPlan();
+                    if (plan != null) {
+                        Collections.reverse(plan);
+                        for (StripsAction action : plan) {
+                            result.push(action);
+                        }
+                    }
+                    state = state.getParent();
+                }
+                return result;
+            }
+
+            closedList.add(current);
+
+            for (GameState s : current.generateChildren()) {
+                boolean shouldAdd = true;
+                GameState[] statesInOpenList = openList.toArray(new GameState[0]);
+                for (GameState state : statesInOpenList) {
+                    if (state.equals(s) && state.getCost() <= s.getCost()) {
+                        shouldAdd = false;
+                        break;
+                    }
+                }
+                if (shouldAdd) {
+                    openList.add(s);
                 }
             }
         }
-        
-    	return finalPlan;
+
+        return null;
     }
-    
+
     /**
      * This has been provided for you. Each strips action is converted to a string with the toString method. This means
      * each class implementing the StripsAction interface should override toString. Your strips actions should have a
