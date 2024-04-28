@@ -60,6 +60,8 @@ public class GameState implements Comparable<GameState> {
 
     private final List<UnitView> allUnits;
     private List<UnitView> playerUnits = new ArrayList<>();
+    private UnitView townHall;
+    private List<Peasant> peasantUnits = new ArrayList<>();
 
     //resources maps
     private final List<ResourceView> resourceNodes;
@@ -67,19 +69,23 @@ public class GameState implements Comparable<GameState> {
     private final int[][] woodMap;
     private final int[][] goldMap;
 
-    public int playernum; // The player number of agent
+    private final int playernum; // The player number of agent
 
     private GameState parent = null; // The parent of the game state
 
     private double cost;
-    private UnitView townHall;
+    private double heuristic;
+    private List<StripsAction> plan;
 
-    private ArrayList<StripsAction> plan = new ArrayList<>();
+    //getter
+    public State.StateView getState() {
+        return state;
+    }
 
-    private StripsAction parentAction;
-    public StripsAction childAction;
+    public int getPlayerNum() {
+        return playernum;
+    }
 
-    //getter setter
     public GameState getParent() {
         return parent;
     }
@@ -96,24 +102,12 @@ public class GameState implements Comparable<GameState> {
         return this.goldMap;
     }
 
-    public ArrayList<StripsAction> getPlan(){
-        return plan;
-    }
-
     public int getXExtent() {
         return xExtent;
     }
 
     public int getYExtent() {
         return yExtent;
-    }
-
-    public List<UnitView> getPlayerUnits() {
-        return playerUnits;
-    }
-
-    public List<ResourceView> getResourceNodes() {
-        return resourceNodes;
     }
 
     public int getGold() {
@@ -124,16 +118,53 @@ public class GameState implements Comparable<GameState> {
         return wood;
     }
 
+    public int getRequiredGold() {
+        return requiredGold;
+    }
+
+    public int getRequiredWood() {
+        return requiredWood;
+    }
+
+    public List<UnitView> getPlayerUnits() {
+        return playerUnits;
+    }
+
     public List<UnitView> getAllUnits() {
         return allUnits;
     }
 
-    public void addCost(double cost) {
-        this.cost += cost;
+    public List<ResourceView> getResourceNodes() {
+        return resourceNodes;
     }
 
-    public void addPlan(StripsAction action) {
-        plan.add(action);
+    public boolean isBuildPeasants() {
+        return buildPeasants;
+    }
+
+    public List<Peasant> getPeasantUnits() {
+        return peasantUnits;
+    }
+
+    public StripsAction getPreviousAction() {
+        return plan.get(0);
+    }
+
+    public List<StripsAction> getPlan(){
+        return plan;
+    }
+
+    public double getCost() {
+        return cost;
+    }
+
+    public double getHeuristic() {
+        return heuristic;
+    }
+
+    // setter
+    public void addCost(double cost) {
+        this.cost += cost;
     }
 
     public void addGold(int gold) {
@@ -142,6 +173,10 @@ public class GameState implements Comparable<GameState> {
 
     public void addWood(int wood) {
         this.wood += wood;
+    }
+
+    public void addPlan(StripsAction action) {
+        plan.add(action);
     }
 
     /**
@@ -156,15 +191,18 @@ public class GameState implements Comparable<GameState> {
      */
     public GameState(State.StateView state, int playernum, int requiredGold, int requiredWood, boolean buildPeasants) {
 
+        // misc
         this.state = state;
+        this.playernum = playernum;
+        this.buildPeasants = buildPeasants;
+
+        // resources
         this.requiredGold = requiredGold;
         this.gold = state.getResourceAmount(playernum, ResourceType.GOLD);
         this.requiredWood = requiredWood;
         this.wood = state.getResourceAmount(playernum, ResourceType.WOOD);
-        this.playernum = playernum;
-        this.buildPeasants = buildPeasants;
 
-        //map
+        // map
         this.xExtent = state.getXExtent();
         this.yExtent = state.getYExtent();
         this.allUnits = state.getAllUnits();
@@ -173,8 +211,19 @@ public class GameState implements Comparable<GameState> {
             if (u.getTemplateView().getPlayer() == playernum) {
                 if (u.getTemplateView().getName().equalsIgnoreCase("peasant")) {
                     this.playerUnits.add(u);
-                } else if (u.getTemplateView().getName().equalsIgnoreCase("townhall")) {
 
+                    Position spawn = new Position(townHall.getXPosition(), townHall.getYPosition());
+                    Peasant p = new Peasant(u.getID(), false, false, u.getCargoAmount(), u.getXPosition(), u.getYPosition(), spawn);
+
+                    if (u.getCargoType() == ResourceType.GOLD) {
+                        p.has_gold = true;
+                        p.has_wood = false;
+                    } else if (u.getCargoType() == ResourceType.WOOD) {
+                        p.has_wood = true;
+                        p.has_gold = false;
+                    }
+                    this.peasantUnits.add(p);
+                } else if (u.getTemplateView().getName().equalsIgnoreCase("townhall")) {
                     this.townHall = u;
                 }
             }
@@ -508,17 +557,6 @@ public class GameState implements Comparable<GameState> {
         }
 
         return bestPosition;
-    }
-
-    /**
-     *
-     * Write the function that computes the current cost to get to this node. This is combined with your heuristic to
-     * determine which actions/states are better to explore.
-     *
-     * @return The current cost to reach this goal
-     */
-    public double getCost() {
-        return cost;
     }
 
     /**
