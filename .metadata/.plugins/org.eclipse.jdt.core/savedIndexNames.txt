@@ -1,6 +1,0 @@
-INDEX VERSION 1.134+C:\Users\10486\Documents\GitHub\SEPIA\.metadata\.plugins\org.eclipse.jdt.core
-1238287384.index
-1588988362.index
-2715016703.index
-1865797976.index
-2726239601.index
