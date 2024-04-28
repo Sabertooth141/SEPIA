@@ -46,9 +46,10 @@ import java.util.List;
 public class GameState implements Comparable<GameState> {
 
     public final State.StateView state;
-    // current gold & wood
+    // current resources
     public int gold;
     public int wood;
+    public int food;
     // required gold & wood
     public int requiredGold;
     public int requiredWood;
@@ -175,6 +176,10 @@ public class GameState implements Comparable<GameState> {
         this.wood += wood;
     }
 
+    public void addFood(int food) {
+        this.food += food;
+    }
+
     public void addPlan(StripsAction action) {
         plan.add(action);
     }
@@ -201,6 +206,7 @@ public class GameState implements Comparable<GameState> {
         this.gold = state.getResourceAmount(playernum, ResourceType.GOLD);
         this.requiredWood = requiredWood;
         this.wood = state.getResourceAmount(playernum, ResourceType.WOOD);
+        this.food = state.getSupplyAmount(playernum);
 
         // map
         this.xExtent = state.getXExtent();
@@ -216,11 +222,11 @@ public class GameState implements Comparable<GameState> {
                     Peasant p = new Peasant(u.getID(), false, false, u.getCargoAmount(), u.getXPosition(), u.getYPosition(), spawn);
 
                     if (u.getCargoType() == ResourceType.GOLD) {
-                        p.has_gold = true;
-                        p.has_wood = false;
+                        p.hasGold = true;
+                        p.hasWood = false;
                     } else if (u.getCargoType() == ResourceType.WOOD) {
-                        p.has_wood = true;
-                        p.has_gold = false;
+                        p.hasWood = true;
+                        p.hasGold = false;
                     }
                     this.peasantUnits.add(p);
                 } else if (u.getTemplateView().getName().equalsIgnoreCase("townhall")) {
@@ -252,20 +258,29 @@ public class GameState implements Comparable<GameState> {
             }
         }
 
-        this.plan = new ArrayList<StripsAction>();
+        this.plan = new ArrayList<>();
         this.cost = getCost();
         this.parent = null;
-        this.heuristic();
+        this.heuristic = heuristic();
     }
 
+    // constructor for children
     public GameState(GameState copiedState) {
+        // misc
         this.state = copiedState.state;
         this.parent = copiedState;
         this.playernum = copiedState.playernum;
-        this.requiredGold = copiedState.requiredGold;
-        this.requiredWood = copiedState.requiredWood;
         this.buildPeasants = copiedState.buildPeasants;
         this.townHall = copiedState.townHall;
+
+        // resources
+        this.requiredGold = copiedState.requiredGold;
+        this.requiredWood = copiedState.requiredWood;
+        this.wood = copiedState.wood;
+        this.gold = copiedState.gold;
+        this.food = copiedState.food;
+
+        // map
 
         this.xExtent = copiedState.xExtent;
         this.yExtent = copiedState.yExtent;
@@ -317,7 +332,18 @@ public class GameState implements Comparable<GameState> {
             copiedPlayerUnits.add(new UnitView(unit));
         }
         this.playerUnits = copiedPlayerUnits;
-        this.heuristic();
+
+        List<Peasant> copiedPeasants = new ArrayList<>();
+        for (Peasant p : copiedState.peasantUnits) {
+            Peasant unit = new Peasant(p.id, p.hasGold, p.hasWood, p.cargoAmount, p.x, p.y, p.neighbor);
+            copiedPeasants.add(unit);
+        }
+        this.peasantUnits = copiedPeasants;
+
+        this.cost = getCost();
+        this.plan = new ArrayList<>(copiedState.getPlan());
+
+        this.heuristic = heuristic();
     }
 
     public GameState getChild(StripsAction action) {
@@ -357,6 +383,15 @@ public class GameState implements Comparable<GameState> {
         return this.getGold() >= this.requiredGold && this.getWood() >= this.requiredWood;
     }
 
+    private List<Peasant> copyPeasant (List<Peasant> peasants) {
+        List<Peasant> copiedPeasants = new ArrayList<>();
+        for (Peasant p : peasants) {
+            Peasant unit = new Peasant(p.id, p.hasGold, p.hasWood, p.cargoAmount, p.x, p.y, p.neighbor);
+            copiedPeasants.add(unit);
+        }
+        return copiedPeasants;
+    }
+
     /**
      * The branching factor of this search graph are much higher than the planning. Generate all of the possible
      * successor states and their associated actions in this method.
@@ -364,7 +399,29 @@ public class GameState implements Comparable<GameState> {
      * @return A list of the possible successor states and their associated actions
      */
     public List<GameState> generateChildren() {
-        List<GameState> result = new ArrayList<GameState>();
+        List<GameState> result = new ArrayList<>();
+        List<Peasant> copiedPeasant = copyPeasant(this.peasantUnits);
+        int PeasantSize = copiedPeasant.size();
+        List<List<Peasant>> allCombinations = new ArrayList<>();
+
+        for (int i = 0; i < (1 << PeasantSize); i++) {
+            List<Peasant> currentSet = new ArrayList<>();
+            for (int j = 0; j < PeasantSize; j++) {
+                if ((i & (1 << j)) > 0) {
+                    currentSet.add(copiedPeasant.get(i));
+                }
+            }
+            allCombinations.add(currentSet);
+        }
+        allCombinations.remove(0);
+
+        for (List<Peasant> combination : allCombinations) {
+            Position bestGoldMine = findMostGold(new Position(combination.get(0).x, combination.get(0).y));
+            if (bestGoldMine != null) {
+                Move moveActionGold = new Move(combination, bestGoldMine, this);
+            }
+        }
+
         for (UnitView uv : playerUnits) {
             for (Direction dir : Direction.values()) {
                 int x = uv.getXPosition() + dir.xComponent();
