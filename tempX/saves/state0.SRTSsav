@@ -14,7 +14,7 @@
         <unit>
             <ID>1</ID>
             <currentHealth>30</currentHealth>
-            <xPosition>7</xPosition>
+            <xPosition>8</xPosition>
             <yPosition>8</yPosition>
             <templateID>26</templateID>
             <cargoAmount>0</cargoAmount>
@@ -789,7 +789,7 @@
             <affectedUnitTypes>2</affectedUnitTypes>
         </template>
         <resourceAmount>
-            <quantity>3100</quantity>
+            <quantity>3000</quantity>
             <type>GOLD</type>
         </resourceAmount>
         <resourceAmount>
@@ -805,6 +805,6 @@
         <xPosition>22</xPosition>
         <yPosition>16</yPosition>
         <initialAmount>0</initialAmount>
-        <amountRemaining>1700</amountRemaining>
+        <amountRemaining>1800</amountRemaining>
     </resourceNode>
 </state>

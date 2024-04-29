@@ -5,7 +5,6 @@ import edu.cwru.sepia.environment.model.state.*;
 import edu.cwru.sepia.environment.model.state.ResourceNode.ResourceView;
 import edu.cwru.sepia.environment.model.state.Unit.UnitView;
 import edu.cwru.sepia.environment.model.state.UnitTemplate;
-import edu.cwru.sepia.util.*;
 
 import java.util.*;
 

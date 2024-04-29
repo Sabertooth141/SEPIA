@@ -13,69 +13,41 @@ public class Move_k implements StripsAction {
 
 	List<Action> sepiaAction = new ArrayList<Action>();
 
-
-    Position starPosition;
-    Position destPosition;
+    Position startPos;
+    Position endPos;
     List<Position> availablePositions = new ArrayList<Position>();
 
-
-
-	public Move_k(List<Peasant> peasants, Position destPosition, GameState parent) {
+	/**
+	 * constructor for move
+	 * @param peasants list of available peasants
+	 * @param endPos the destination of movement
+	 * @param parent the parrent state
+	 */
+	public Move_k(List<Peasant> peasants, Position endPos, GameState parent) {
 		this.peasants = peasants;
-		this.destPosition = destPosition;
+		this.endPos = endPos;
 		this.parent = parent;
-
-		this.starPosition = peasants.get(0).neighbor;
+		this.startPos = peasants.get(0).neighbor;
 	}
 
-
-    private boolean legal_pos(Position pos) {
-        if (pos.x < 0 || pos.x >= parent.getxExtent() || pos.y < 0 || pos.y >= parent.getyExtent()) {
-            return false;
-        }
-        else if (parent.getMap()[pos.x][pos.y]) { //resource
-            return false;
-        }
-        else {
-            return true;
-        }
-    }
-
-    @Override
-    public GameState getParent() {
-        return this.parent;
-    }
-
-
-
+	/**
+	 * Find if movement statisfies conditions
+	 * @param state the current state
+	 * @return if the movement can be constructed
+	 */
     @Override
 	public boolean preconditionsMet(GameState state) {
 
-        int x = destPosition.x;
-		int y = destPosition.y;
+        int x = endPos.x;
+		int y = endPos.y;
 
-        int gold_amount = parent.getGoldMap()[x][y];
-        int wood_amount = parent.getWoodMap()[x][y];
-		if(gold_amount != 0 || wood_amount != 0) {
-            if (gold_amount != 0) {
-                if((int) ((gold_amount - 1) / 100) + 1 < peasants.size()) {
-    				return false;
-    			}
-    			if((int) (((parent.getRequiredGold() - parent.getCurrentGold()) - 1) / 100) + 1 < peasants.size()) {
-    				return false;
-    			}
-            }
-            if (wood_amount != 0) {
-                if((int) ((wood_amount - 1) / 100) + 1 < peasants.size()) {
-    				return false;
-    			}
-    			if((int) (((parent.getRequiredWood() - parent.getCurrentWood()) - 1) / 100) + 1 < peasants.size()) {
-    				return false;
-    			}
-            }
+        int goldAmount = parent.getGoldMap()[x][y];
+        int woodAmount = parent.getWoodMap()[x][y];
 
+		if(goldAmount != 0 || woodAmount != 0) {
+            if (goldAmount != 0 && notEnoughPeasant(goldAmount, parent.getRequiredGold() - parent.getCurrentGold(), peasants.size())) return false;
+            if (woodAmount != 0 && notEnoughPeasant(woodAmount, parent.getRequiredWood() - parent.getCurrentWood(), peasants.size())) return false;
 		}
-
 
         List<Position> candidate_poses = new ArrayList<>();
 		for (int i = x - 1; i <= x + 1; i++) {
@@ -85,7 +57,7 @@ public class Move_k implements StripsAction {
 		}
 
 		for (Position pos : candidate_poses) {
-			if (legal_pos(pos)) {
+			if (legalPosition(pos)) {
 				boolean collision_flag = false;
 				for(Peasant p : state.getPeasantUnits()) {
 					if(p.x == pos.x && p.y == pos.y) {
@@ -99,6 +71,18 @@ public class Move_k implements StripsAction {
         }
 
 		return availablePositions.size() > peasants.size();
+	}
+
+	private boolean notEnoughPeasant(int resourceAmount, int requiredResource, int peasantCount) {
+		int batches = resourceAmount / 100;
+		int requiredBatches = requiredResource / 100 ;
+		return batches < peasantCount || requiredBatches < peasantCount;
+	}
+
+	private boolean legalPosition(Position pos) {
+		if (pos.x < 0 || pos.x >= parent.getxExtent() || pos.y < 0 || pos.y >= parent.getyExtent()) return false;
+		else if (parent.getMap()[pos.x][pos.y]) return false;
+		return true;
 	}
 
     @Override
@@ -135,7 +119,7 @@ public class Move_k implements StripsAction {
 
             updated_p.x = optimal_pos.x;
             updated_p.y = optimal_pos.y;
-			updated_p.neighbor = destPosition;
+			updated_p.neighbor = endPos;
 			availablePositions.remove(optimal_pos);
 
 			sepiaAction.add(Action.createCompoundMove(p.id, optimal_pos.x, optimal_pos.y));
@@ -155,4 +139,11 @@ public class Move_k implements StripsAction {
 	public List<Action> createSEPIAaction() {
 		return sepiaAction;
 	}
+	
+    @Override
+    public GameState getParent() {
+        return this.parent;
+    }
+
+
 }
