@@ -63,10 +63,10 @@ public class GameState implements Comparable<GameState> {
 	private GameState parent;
 
 
+	// Get & Set Methods 
 	public State.StateView getState() {
 		return state;
 	}
-
 
     public int getPlayerNum() {
 		return playerNum;
@@ -149,14 +149,14 @@ public class GameState implements Comparable<GameState> {
      * @param buildPeasants True if the BuildPeasant action should be considered
      */
 	public GameState(State.StateView state, int playernum, int requiredGold, int requiredWood, boolean buildPeasants) {
-
+		// assign variables
         this.state = state;
 		this.playerNum = playernum;
 		this.buildPeasants = buildPeasants;
 		this.xExtent = state.getXExtent();
 		this.yExtent = state.getYExtent();
 		this.allUnits = state.getAllUnits();
-
+		// Assign position information & state information
         for (UnitView u : allUnits) {
 			if (u.getTemplateView().getPlayer() == playerNum) {
 				if (u.getTemplateView().getName().toLowerCase().equals("peasant")) {
@@ -179,8 +179,7 @@ public class GameState implements Comparable<GameState> {
 				}
 			}
 		}
-
-
+        // map & resources
 		this.map = new boolean[xExtent][yExtent];
 		this.goldMap = new int[xExtent][yExtent];
 		this.woodMap = new int[xExtent][yExtent];
@@ -204,7 +203,8 @@ public class GameState implements Comparable<GameState> {
 				woodMap[r.getXPosition()][r.getYPosition()] = r.getAmountRemaining();
 			}
 		}
-
+		
+		// Stuffs
         this.requiredGold = requiredGold;
 		this.requiredWood = requiredWood;
 		this.currentGold = state.getResourceAmount(playernum, ResourceType.GOLD);
@@ -221,8 +221,9 @@ public class GameState implements Comparable<GameState> {
 
 
 
-    // Copy for parent to "offspring."
+    // Assign Parents
 	public GameState(GameState copy) {
+		// Set the parent state to the given state
 		this.parent = copy;
 		this.state = copy.state;
 		this.playerNum = copy.playerNum;
@@ -237,7 +238,7 @@ public class GameState implements Comparable<GameState> {
 		this.currentWood = copy.currentWood;
         this.currentFood = copy.currentFood;
 
-
+        // Copy list of resource nodes
 		List<ResourceView> cResourceNode = new ArrayList<ResourceView>();
 		for (ResourceView r : copy.resourceNodes) {
 			ResourceView rv = new ResourceView(new ResourceNode(r.getType(), r.getXPosition(),
@@ -246,6 +247,7 @@ public class GameState implements Comparable<GameState> {
 		}
 		this.resourceNodes = cResourceNode;
 
+		// Deep copy
 		boolean[][] originalMap = copy.map;
 		boolean[][] cMap = new boolean[originalMap.length][originalMap[0].length];
 		for (int i = 0; i < originalMap.length; i++) {
@@ -254,7 +256,8 @@ public class GameState implements Comparable<GameState> {
 			}
 		}
 		this.map = cMap;
-
+		
+		// copy Gold map
 		int[][] originalGmap = copy.goldMap;
 		int[][] cGmap = new int[originalGmap.length][originalGmap[0].length];
 		for (int i = 0; i < originalGmap.length; i++) {
@@ -264,6 +267,7 @@ public class GameState implements Comparable<GameState> {
 		}
 		this.goldMap = cGmap;
 
+		//copy wood map
 		int[][] originalWmap = copy.woodMap;
 		int[][] cWmap = new int[originalWmap.length][originalWmap[0].length];
 		for (int i = 0; i < originalWmap.length; i++) {
@@ -283,7 +287,7 @@ public class GameState implements Comparable<GameState> {
 		}
 		this.allUnits = cUnits;
 
-
+		// Copy player-specific units.
 		List<UnitView> cPlayerUnits = new ArrayList<UnitView>();
 		for (UnitView uv : copy.playerUnits) {
 			Unit unit = new Unit(new UnitTemplate(uv.getID()), uv.getID());
@@ -294,6 +298,7 @@ public class GameState implements Comparable<GameState> {
 		}
 		this.playerUnits = cPlayerUnits;
 
+		// Copy Peasants
         List<Peasant> cPeasantUnits = new ArrayList<>();
 		for (Peasant p : copy.peasantUnits) {
 			Peasant p_unit = new Peasant(p.id, p.x, p.y, p.hasGold, p.hasWood, p.cargoAmount, p.neighbor);
@@ -301,13 +306,16 @@ public class GameState implements Comparable<GameState> {
 		}
 		this.peasantUnits = cPeasantUnits;
 
+		// Calculate and set the cost of this state
 		this.cost = getCost();
+		// Copy the action plan
 		List<StripsAction> copiedList = new ArrayList<StripsAction>();
 		for (StripsAction element : copy.getPlan()) {
 			copiedList.add(element);
 		}
 		this.plan = copiedList;
 		this.townHall = copy.townHall;
+		// heuristic value
 		this.heuristic = heuristic();
 	}
 
@@ -332,6 +340,8 @@ public class GameState implements Comparable<GameState> {
     public double getCost() {
         return this.cost;
     }
+
+    // Change resources amount
     public void addGold(int n) {
         currentGold += n;
     }
@@ -344,6 +354,8 @@ public class GameState implements Comparable<GameState> {
     public void addCost(double n) {
         this.cost += n;
     }
+    
+    // record plan
     public void addPlan(StripsAction action) {
         plan.add(action);
     }
@@ -367,27 +379,16 @@ public class GameState implements Comparable<GameState> {
 	}
 
 
-
+	// Copy peasants
     private List<Peasant> copyPeasants(List<Peasant> to_copy) {
         List<Peasant> cPeasantUnits = new ArrayList<>();
 		for (Peasant p : to_copy) {
 			Peasant p_unit = new Peasant(p.id, p.x, p.y, p.hasGold, p.hasWood, p.cargoAmount, p.neighbor);
+			// add new peasant to list
 			cPeasantUnits.add(p_unit);
 		}
 		return cPeasantUnits;
 	}
-
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-// I have consulted the following method within this block with my ex-groupmate Shiqi (Cathy) LI.
-// as she implemented this part (including the two mostGold/findMostWood methods) of the code last assignment and I don't really know whats her design... and her loop indent is simply too pro :\
-// (similarily, she consulted my actions implementation as well)
 
 	/**
 	 * The branching factor of this search graph are much higher than the planning.
@@ -397,12 +398,15 @@ public class GameState implements Comparable<GameState> {
 	 * @return A list of the possible successor states and their associated actions
 	 */
     public List<GameState> generateChildren() {
+    	// result list 
  		List<GameState> children = new ArrayList<>();
+ 		// avoid modifying the original list
  		List<Peasant> peasantsCopy = copyPeasants(this.peasantUnits);
+ 		// number of peasants
  		int n = peasantsCopy.size();
  		List<List<Peasant>> allCombinations = new ArrayList<>();
-
- 		for (int i = 0; i < (1 << n); i++) { // itertools.combinations
+ 		
+ 		for (int i = 0; i < (1 << n); i++) { 
  			List<Peasant> currentSet = new ArrayList<>();
  			for (int j = 0; j < n; j++) {
  				if ((i & (1 << j)) > 0) {
@@ -413,21 +417,20 @@ public class GameState implements Comparable<GameState> {
  		}
  		List<List<Peasant>> powerSet = allCombinations;
  		powerSet.remove(0);
-
+ 		
+ 		// Iterate over each subset of peasants
  		for (List<Peasant> s : powerSet) {
-
-            // Position bestGold = findMostGold(new Position(u.getXPosition(), u.getYPosition()));
-			// bestMove(result, u, bestGold);
+ 			// Find the position with the most gold closest
  			Position bestGoldMine = findMostGold(new Position(s.get(0).x, s.get(0).y));
+ 			// Generate a move action to the best gold mine
  			if (bestGoldMine != null) {
  				Move_k moveKActionGold = new Move_k(s, bestGoldMine, this);
  				if (moveKActionGold.preconditionsMet(this)) {
  					children.add(moveKActionGold.apply(this));
  				}
  			}
-
-            // Position bestWood = findMostWood(new Position(u.getXPosition(), u.getYPosition()));
-			// bestMove(result, u, bestWood);
+ 			
+ 			// Find the position with the most wood closest to the first peasant's position.
  			Position bestWood = findMostWood(
  					new Position(peasantUnits.get(0).x, peasantUnits.get(0).y));
  			if (bestWood != null) {
@@ -437,8 +440,6 @@ public class GameState implements Comparable<GameState> {
  				}
  			}
 
-            // Position th = new Position(townHall.getXPosition(), townHall.getYPosition());
-			// bestMove(result, u, th);
  			Position townhallPosition = new Position(this.townHall.getXPosition(), this.townHall.getYPosition());
  			Move_k moveKActionTownhall = new Move_k(s, townhallPosition, this);
  			if (moveKActionTownhall.preconditionsMet(this)) {
@@ -447,21 +448,23 @@ public class GameState implements Comparable<GameState> {
 
 
 
-
+ 		    // Generate a harvest action for gold
  			Harvest_k harvestKGold = new Harvest_k(s, bestGoldMine, this);
  			if (harvestKGold.preconditionsMet(this)) {
  				children.add(harvestKGold.apply(this));
  			}
+ 			// Generate a harvest action for gold
  			Harvest_k harvestKWood = new Harvest_k(s, bestWood, this);
  			if (harvestKWood.preconditionsMet(this)) {
  				children.add(harvestKWood.apply(this));
  			}
+ 			// Generate a deposit action at the town hall
  			Deposit_k depositKAction = new Deposit_k(s, townhallPosition, this);
  			if (depositKAction.preconditionsMet(this)) {
  				children.add((depositKAction.apply(this)));
  			}
  		}
-
+ 		// generate a new peasant if preconditions are met
  		BuildPeasant buildPeasant = new BuildPeasant(this);
  		if (buildPeasant.preconditionsMet(this)) {
  			children.add(buildPeasant.apply(this));
@@ -469,37 +472,39 @@ public class GameState implements Comparable<GameState> {
 
  		return children;
  	}
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
+    
  	public Position findMostGold(Position currentPosition) {
- 		Position result = null;
- 		int resource = 0;
- 		int dist = 0;
- 		int requiredAmount = requiredGold;
- 		int currentAmount = currentGold;
- 		int [][] map = goldMap;
- 		for(int i = 0; i < map.length; i ++) {
- 			for(int j = 0; j < map[i].length; j ++) {
- 				int currentBest = map[i][j];
- 				if(currentBest > 0) {
- 					int distance = currentPosition.chebyshevDistance(new Position(i, j));
- 					if(result == null) {
- 						result = new Position(i, j);
- 						dist = distance;
- 						resource = currentBest;
- 					}
- 					else {
- 						if(distance <= dist) {
- 							if(currentBest >= resource || currentBest >= requiredAmount - currentAmount) {
- 								result = new Position(i, j);
- 								dist = distance;
- 								resource = currentBest;
+ 		Position result = null;  // Initialize the result as null to store the position of the best gold source.
+ 	    int resource = 0;  // To store the amount of gold at the best found position.
+ 	    int dist = 0;  // To store the distance to the best gold source found.
+ 	    int requiredAmount = requiredGold;  // The total amount of gold needed.
+ 	    int currentAmount = currentGold;  // The current amount of gold held.
+ 	    int [][] map = goldMap;  // Reference to the gold map showing gold distribution.
+ 	    // Loop through each cell in the gold map.
+ 	    for(int i = 0; i < map.length; i++) {
+ 	        for(int j = 0; j < map[i].length; j++) {
+ 	            int currentBest = map[i][j]; // Amount of gold at the current map cell.
+ 	            
+ 	            // Check if there is any gold at the current cell.
+ 	            if(currentBest > 0) {
+ 	                // Use the Chebyshev distance from the current position to the current cell.
+ 	                int distance = currentPosition.chebyshevDistance(new Position(i, j));
+ 	                
+ 	                // If no best position has been found yet
+ 	                //or the current one is being considered for the first time.
+ 	                if(result == null) {
+ 	                    // Set the current position as the best gold source.
+ 	                    result = new Position(i, j);
+ 	                    dist = distance;
+ 	                    resource = currentBest;
+ 	                } else {
+ 	                    // If a best position is already set, check if the current position is closer or equally close.
+ 	                    if(distance <= dist) {
+ 	                        // If the current position has more gold or enough gold to meet the requirement minus what's already collected.
+ 	                        if(currentBest >= resource || currentBest >= requiredAmount - currentAmount) {
+ 	                            result = new Position(i, j);
+ 	                            dist = distance;
+ 	                            resource = currentBest;
  							}
  						}
  					}
@@ -509,7 +514,8 @@ public class GameState implements Comparable<GameState> {
 
  		return result;
  	}
-
+ 	
+ 	// Use similar to Find Wood
  	public Position findMostWood(Position currentPosition) {
  		Position result = null;
  		int resource = 0;
@@ -543,8 +549,9 @@ public class GameState implements Comparable<GameState> {
  		return result;
  	}
 
-
+ 	// return current Unit & Peasant & Resource
     public UnitView findUnit(int unitId, List<UnitView> units) {
+    	// iterate units
         for (UnitView u : units) {
             if (u.getID() == unitId) {
                 return u;
@@ -553,6 +560,7 @@ public class GameState implements Comparable<GameState> {
         return null;
     }
 	public Peasant findPeasant(int peasantId, List<Peasant> peasants) {
+		//iterate peasants
 		for (Peasant p : peasants) {
 			if (p.id == peasantId) {
 				return p;
@@ -561,6 +569,7 @@ public class GameState implements Comparable<GameState> {
 		return null;
 	}
     public ResourceView findResource(int x, int y, List<ResourceView> resources) {
+    	//iterate resources
         for (ResourceView r : resources) {
             if (r.getXPosition() == x && r.getYPosition() == y) {
                 return r;
@@ -580,14 +589,17 @@ public class GameState implements Comparable<GameState> {
 	 *         state.
 	 */
      public double heuristic() {
+    	 // To know resources we still need to collection
         int goldDiff = requiredGold - currentGold;
      	int woodDiff = requiredWood - currentWood;
         double result = goldDiff + woodDiff;
 
-
+        // iterate over all peasants to see if they are available 
 		for (Peasant p : peasantUnits) {
 			double p_cargo_amount = (double) p.cargoAmount;
+			// If taking cargo
 			if (p_cargo_amount > 0) {
+				// Available for deposit
 				if (can_deposit(p)) {
 					result -= p_cargo_amount * 0.75;
 				}
@@ -604,11 +616,12 @@ public class GameState implements Comparable<GameState> {
 			}
 		}
 
-
+		// Heuristic
  		this.heuristic = result / peasantUnits.size();
  		return result;
  	}
 
+    // Check if able to deposit
 	public boolean can_deposit(Peasant p) {
 		if (Math.abs(p.x - townHall.getXPosition()) <= 1 && Math.abs(p.y - townHall.getYPosition()) <= 1) {
 			return true;
@@ -616,25 +629,34 @@ public class GameState implements Comparable<GameState> {
 		return false;
 	}
 
-    public int try_harvest(Peasant p) {
-        int x = p.x;
-        int y = p.y;
-        int holder = 0;
-        for (int i = x - 1; i <= x + 1; i++) {
-			for (int j = y - 1; j <= y + 1; j++) {
-				if (getGoldMap()[i][j] != 0 || getWoodMap()[i][j] != 0) {
-                    int temp = getGoldMap()[i][j] + getWoodMap()[i][j];
-                    if (temp > holder) {
-                        holder = temp;
-                    }
-                }
-			}
-		}
-        if (holder > 100) {
-            holder = 100;
-        }
-		return holder;
+	public int try_harvest(Peasant p) {
+	    int x = p.x; // Store the peasant's position
+	    int y = p.y;
+	    int holder = 0; //maximum resources
+
+	    // Loop over the area (3x3 grid centered on the peasant).
+	    for (int i = x - 1; i <= x + 1; i++) {
+	        for (int j = y - 1; j <= y + 1; j++) {
+	            // either gold or wood exist.
+	            if (getGoldMap()[i][j] != 0 || getWoodMap()[i][j] != 0) {
+	                // Calculate the total resources at the current cell.
+	                int temp = getGoldMap()[i][j] + getWoodMap()[i][j];
+	                // Update holder if the current cell has more resources than previously recorded.
+	                if (temp > holder) {
+	                    holder = temp;
+	                }
+	            }
+	        }
+	    }
+
+	    // Cap the harvest amount at 100 units.
+	    if (holder > 100) {
+	        holder = 100;
+	    }
+	    
+	    return holder;
 	}
+
 
 
 
@@ -650,6 +672,7 @@ public class GameState implements Comparable<GameState> {
     @Override
 	public boolean equals(Object o) {
 		if (o instanceof GameState) {
+			// check if important variables are the same. If are the same, take as same state.
 			if (this.currentGold == ((GameState) o).getCurrentGold()
 				&& this.currentWood == ((GameState) o).getCurrentWood()
 				&& this.allUnits.equals(((GameState) o).getAllUnits())
