@@ -789,7 +789,7 @@
             <affectedUnitTypes>2</affectedUnitTypes>
         </template>
         <resourceAmount>
-            <quantity>1100</quantity>
+            <quantity>1000</quantity>
             <type>GOLD</type>
         </resourceAmount>
         <resourceAmount>
@@ -805,7 +805,7 @@
         <xPosition>22</xPosition>
         <yPosition>16</yPosition>
         <initialAmount>0</initialAmount>
-        <amountRemaining>3700</amountRemaining>
+        <amountRemaining>3800</amountRemaining>
     </resourceNode>
     <resourceNode>
         <ID>5</ID>

@@ -1,8 +1,5 @@
 package edu.cwru.sepia.agent.planner.actions;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.agent.planner.GameState;
 import edu.cwru.sepia.agent.planner.Peasant;
@@ -13,115 +10,116 @@ import edu.cwru.sepia.environment.model.state.Unit.UnitView;
 import edu.cwru.sepia.environment.model.state.UnitTemplate;
 import edu.cwru.sepia.util.Direction;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class BuildPeasant implements StripsAction {
 
-	//
-	// instance fields
-	//
+	private final GameState parent;
 
-	private GameState parent;
-
-	private int currentGold;
-	private int currentFood;
-
-	private int peasantGoldCost;
-	private int peasantFoodCost;
-	private int peasantLimit;
-
+    // new peasant and its location
 	private Peasant peasant;
 	private int newX;
 	private int newY;
 
 	private String stripsAction;
-	private List<Action> sepiaAction = new ArrayList<Action>();
+	private final List<Action> sepiaAction = new ArrayList<Action>();
 
-	//
-	// constructor methods
-	//
-
+	/**
+	 * Constructer that points the designated state as parent
+	 * @param parent the state to check for available build actions
+	 */
 	public BuildPeasant(GameState parent) {
 		this.parent = parent;
 	}
 
-	//
-	// inherited methods
-	//
-
-	// checks to see if the action can be executed on the state
+	/**
+	 * Find if the conditions met to build a new peasant
+	 * @param state the current state
+	 * @return bool indicating if the peasant can be build
+	 */
 	@Override
 	public boolean preconditionsMet(GameState state) {
-		// get current amount of resources
-		currentGold = state.getCurrentGold();
-		currentFood = state.getCurrentFood();
+		// get current reserve of both gold and food
+        int currentGold = state.getCurrentGold();
+        int currentFood = state.getCurrentFood();
 
-		// get resource cost of building peasant
-		peasantGoldCost = state.getState().getTemplate(state.getPlayerNum(), "Peasant").getGoldCost();
-		peasantFoodCost = state.getState().getTemplate(state.getPlayerNum(), "Peasant").getFoodCost();
-		peasantLimit = state.getState().getSupplyCap(state.getPlayerNum());
+		// If gold and food are sufficient
+		if (state.isBuildPeasants() && currentGold >= 400 && currentFood < 3) {
 
-		// check if the resources are enough to build a peasant
-		if (state.isBuildPeasants() && currentGold >= peasantGoldCost && currentFood < peasantLimit) {
-			// check if there are empty positions around townhall to place peasant
-			int townHallXPos = state.getTownHall().getXPosition();
-			int townHallYPos = state.getTownHall().getYPosition();
-
-			for (Direction d : Direction.values()) {
-				newX = townHallXPos + d.xComponent();
-				newY = townHallYPos + d.yComponent();
-				if (legalPosition(state, newX, newY)) {
-					return true;
-				}
+			int tHX = state.getTownHall().getXPosition();
+			int tHY = state.getTownHall().getYPosition();
+			
+			// find the first valid position to place the new peasant 
+			for (Direction direction : Direction.values()) {
+				newX = tHX + direction.xComponent();
+				newY = tHY + direction.yComponent();
+				// if everything passes, return true
+				if (legalPosition(state, newX, newY)) return true;
 			}
 		}
-
 		return false;
 	}
 
-	// applies the action and returns a new gameState
+	/**
+	 * Util method that tells if a certain position is legal to place the new peasant
+	 * @param state the current state
+	 * @param x the supposed X coordinate
+	 * @param y the supposed Y coodrdinate
+	 * @return whether it is leagal
+	 */
+	private boolean legalPosition(GameState state, int x, int y) {
+		// if out of map or overlapping with other game objects, return false
+		if ((x < 0 || x >= state.getxExtent() || y < 0 || y >= state.getyExtent()) || state.getMap()[x][y]) return false;
+		else {
+			// or if overlapping with another peasant, return false
+			for (UnitView currentPeasant : state.getPlayerUnits()) {
+				if (x == currentPeasant.getXPosition() && y == currentPeasant.getYPosition()) return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Execute the action to the given state
+	 * @param state the given current state to build
+	 * @return the new gameState 
+	 */
 	@Override
 	public GameState apply(GameState state) {
 		GameState newGameState = new GameState(state);
 
-		// get townHall position
-		Position townHallPosition = new Position(state.getTownHall().getXPosition(),
-				state.getTownHall().getYPosition());
+		// retrieve the position of the townHall
+		Position tHPos = new Position(state.getTownHall().getXPosition(), state.getTownHall().getYPosition());
 
-		// create new peasant
+		// initiate the new peasant
 		TemplateView peasantTemplate = newGameState.getState().getTemplate(newGameState.getPlayerNum(), "Peasant");
 		int peasantTemplateID = peasantTemplate.getID();
 		Unit peasantUnit = new Unit(new UnitTemplate(peasantTemplateID), peasantTemplateID);
 		UnitView peasantUnitView = new UnitView(peasantUnit);
-
-		//peasant = new Peasant(10, newX, newY, false, false, 0, townHallPosition);
-
-
+		// manually assign the new ids of the generated peasant on screen using unused ids
 		if (newGameState.getPeasantUnits().size() == 1) {
-			peasant = new Peasant(10, newX, newY, false, false, 0, townHallPosition);
+			peasant = new Peasant(10, newX, newY, false, false, 0, tHPos);
 		} else if (newGameState.getPeasantUnits().size() == 2) {
-			peasant = new Peasant(11, newX, newY, false, false, 0, townHallPosition);
+			peasant = new Peasant(11, newX, newY, false, false, 0, tHPos);
 		}
-
+		// add the generated peasant to the gamestate and view
 		newGameState.getPeasantUnits().add(peasant);
 		newGameState.getPlayerUnits().add(peasantUnitView);
 		newGameState.getAllUnits().add(peasantUnitView);
 
-		// decrement current gold after building peasant
-		newGameState.addGold(-(peasantGoldCost));
+		// deduct gold and increase food to finish the action
+		newGameState.addGold(-400);
+		newGameState.addFood(1);
 
-		// increment current food after building peasant
-		newGameState.addFood(peasantFoodCost);
-
-		// set STRIPS command
-		// Action.createPrimitiveProduction(int townhallId, int peasantTemplateId)
+		// set strips action, which is available to work with toString
 		stripsAction = "BuildPeasant(" + state.getTownHall().getID() + "," + peasantTemplateID + ")";
 		sepiaAction.add(Action.createPrimitiveProduction(state.getTownHall().getID(), peasantTemplateID));
 
-		// update the cost and heuristic
+		// update the cost, run A* search heuristics again, and add build to plan
 		double cost = 1;
 		newGameState.addCost(cost);
 		newGameState.heuristic();
-
-		// update the plan
 		newGameState.addPlan(this);
 
 		return newGameState;
@@ -142,27 +140,5 @@ public class BuildPeasant implements StripsAction {
 		return sepiaAction;
 	}
 
-	//
-	// helper methods
-	//
 
-	// check if the position is legal to place peasant
-	private boolean legalPosition(GameState state, int x, int y) {
-		// if the position exceeds the border
-		if (x < 0 || x >= state.getxExtent() || y < 0 || y >= state.getyExtent())
-			return false;
-		// if there is a townhall or resource on the position
-		else if (state.getMap()[x][y])
-			return false;
-		// if there is a unit on the position
-		else {
-			for (UnitView unit : state.getPlayerUnits()) {
-				if (x == unit.getXPosition() && y == unit.getYPosition())
-					return false;
-			}
-		}
-
-		// otherwise
-		return true;
-	}
 }

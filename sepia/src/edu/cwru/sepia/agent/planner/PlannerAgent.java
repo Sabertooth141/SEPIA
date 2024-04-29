@@ -69,7 +69,7 @@ public class PlannerAgent extends Agent {
 			return null;
 		}
 
-		if (peAgent.getPlan().size() > 0) {
+		if (!peAgent.getPlan().isEmpty()) {
 			return peAgent.middleStep(stateView, historyView);
 		} else {
 			return new HashMap<>();
@@ -118,8 +118,7 @@ public class PlannerAgent extends Agent {
  					result.push(list.remove(list.size()-1));
  				}
  				state = state.getParent();
- 				Stack<StripsAction> resultPath = result;
- 				return resultPath;
+                return result;
  			}
  			closedlist.add(current);
  			for (GameState n : current.generateChildren()) {
