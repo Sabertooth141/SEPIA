@@ -11,7 +11,7 @@ public class Peasant {
 
     public Position neighbor;
 
-    public Peasant(int id, boolean hasGold, boolean hasWood, int cargoAmount, int x, int y, Position neighbor) {
+    public Peasant(int id, int x, int y, boolean hasGold, boolean hasWood, int cargoAmount, Position neighbor) {
         this.id = id;
         this.hasGold = hasGold;
         this.hasWood = hasWood;

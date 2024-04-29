@@ -60,9 +60,10 @@ public class Move_k implements StripsAction {
 			if (legalPosition(pos)) {
 				boolean collision_flag = false;
 				for(Peasant p : state.getPeasantUnits()) {
-					if(p.x == pos.x && p.y == pos.y) {
-						collision_flag = true;
-					}
+                    if (p.x == pos.x && p.y == pos.y) {
+                        collision_flag = true;
+                        break;
+                    }
 				}
 				if (!collision_flag) {
 					availablePositions.add(pos);
@@ -81,9 +82,8 @@ public class Move_k implements StripsAction {
 
 	private boolean legalPosition(Position pos) {
 		if (pos.x < 0 || pos.x >= parent.getxExtent() || pos.y < 0 || pos.y >= parent.getyExtent()) return false;
-		else if (parent.getMap()[pos.x][pos.y]) return false;
-		return true;
-	}
+		else return !parent.getMap()[pos.x][pos.y];
+    }
 
     @Override
 	public GameState apply(GameState state) {
@@ -110,7 +110,8 @@ public class Move_k implements StripsAction {
                 }
             }
 
-			int best_Chebyshev = p_pos.chebyshevDistance(optimal_pos);
+            assert optimal_pos != null;
+            int best_Chebyshev = p_pos.chebyshevDistance(optimal_pos);
 			if (best_Chebyshev > min_Chebyshev) {
 				min_Chebyshev = best_Chebyshev;
 			}

@@ -186,7 +186,7 @@ public class Position {
     }
 
     /**
-     * @return human readable string representation.
+     * @return human-readable string representation.
      */
     @Override
     public String toString() {

@@ -3,6 +3,8 @@ package edu.cwru.sepia.agent.planner.actions;
 import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.agent.planner.GameState;
 
+import java.util.List;
+
 /**
  * A useful start of an interface representing strips actions. You may add new methods to this interface if needed, but
  * you should implement the ones provided. You may also find it useful to specify a method that returns the effects
@@ -41,5 +43,5 @@ public interface StripsAction {
      */
     public GameState apply(GameState state);
 
-    public Action convertAction();
+    public List<Action> createSEPIAAction();
 }
